@@ -8,18 +8,10 @@
 ## Окружение
 
 ```bash
-cd ~/hw2
 python3 -m venv .venv
 source .venv/bin/activate
 pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121
 pip install transformers==4.47.0 datasets tqdm
-```
-
-Переменные окружения:
-```bash
-export HF_HOME=/data/shared_ml/huggingface
-export HF_DATASETS_CACHE=~/hw2/datasets_cache
-mkdir -p ~/hw2/datasets_cache
 ```
 
 ---
@@ -27,21 +19,21 @@ mkdir -p ~/hw2/datasets_cache
 ## 1. Single-GPU baseline. Обучение модели в трёх конфигах
 ```bash
 # fp32
-CUDA_VISIBLE_DEVICES=1 nohup env python3 hw2_train_single.py \
+CUDA_VISIBLE_DEVICES=1 nohup env python3 train_single.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-160m \
     --dtype fp32 -b 32 --grad-accum 8 -s 512 --num-epochs 1 \
     > logs/part1_fp32.log 2>&1 &
 
 # bf16
-CUDA_VISIBLE_DEVICES=1 nohup env python3 hw2_train_single.py \
+CUDA_VISIBLE_DEVICES=1 nohup env python3 train_single.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-160m \
     --dtype bf16 -b 32 --grad-accum 8 -s 512 --num-epochs 1 \
     > logs/part1_bf16.log 2>&1 &
 
 # bf16 + activation checkpointing
-CUDA_VISIBLE_DEVICES=1 nohup env python3 hw2_train_single.py \
+CUDA_VISIBLE_DEVICES=1 nohup env python3 train_single.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-160m \
     --dtype bf16 --activation-checkpointing -b 32 --grad-accum 8 -s 512 --num-epochs 1 \
@@ -54,21 +46,21 @@ CUDA_VISIBLE_DEVICES=1 nohup env python3 hw2_train_single.py \
 
 ```bash
 # NO_SHARD
-OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 hw2_train_fsdp.py \
+OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 train_fsdp.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-160m \
     --strategy NO_SHARD -b 64 -s 512 --num-epochs 1 \
     2>&1 | tee logs/part2_no_shard.log
 
 # SHARD_GRAD_OP
-OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 hw2_train_fsdp.py \
+OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 train_fsdp.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-160m \
     --strategy SHARD_GRAD_OP -b 64 -s 512 --num-epochs 1 \
     2>&1 | tee logs/part2_shard_grad_op.log
 
 # FULL_SHARD
-OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 hw2_train_fsdp.py \
+OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 train_fsdp.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-160m \
     --strategy FULL_SHARD -b 64 -s 512 --num-epochs 1 \
@@ -81,21 +73,21 @@ OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 hw2_train_fsdp.py \
 
 ```bash
 # FULL_SHARD
-OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 2 hw2_train_fsdp.py \
+OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 2 train_fsdp.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-160m \
     --strategy FULL_SHARD -b 128 -s 512 --num-epochs 1 \
     2>&1 | tee logs/part3_full_shard.log
 
 # FULL_SHARD + CPUOffload
-OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 2 hw2_train_fsdp.py \
+OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 2 train_fsdp.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-160m \
     --strategy FULL_SHARD --cpu-offload -b 128 -s 512 --num-epochs 1 \
     2>&1 | tee logs/part3_cpu_offload.log
 
 # FULL_SHARD + CPUOffload + activation checkpointing
-OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 2 hw2_train_fsdp.py \
+OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 2 train_fsdp.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-160m \
     --strategy FULL_SHARD --cpu-offload --activation-checkpointing \
@@ -109,21 +101,21 @@ OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 2 hw2_train_fsdp.py \
 
 ```bash
 # 1 GPU
-OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 1 hw2_train_fsdp.py \
+OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 1 train_fsdp.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-160m \
     --strategy FULL_SHARD -b 64 --grad-accum 4 -s 512 --num-epochs 1 \
     2>&1 | tee logs/part4_1gpu.log
 
 # 2 GPU
-OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 2 hw2_train_fsdp.py \
+OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 2 train_fsdp.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-160m \
     --strategy FULL_SHARD -b 64 --grad-accum 2 -s 512 --num-epochs 1 \
     2>&1 | tee logs/part4_2gpu.log
 
 # 4 GPU
-OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 hw2_train_fsdp.py \
+OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 train_fsdp.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-160m \
     --strategy FULL_SHARD -b 64 -s 512 --num-epochs 1 \
@@ -136,21 +128,21 @@ OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 hw2_train_fsdp.py \
 
 ```bash
 # NO_SHARD
-OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 hw2_train_fsdp.py \
+OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 train_fsdp.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-410m \
     --strategy NO_SHARD -b 64 -s 512 --num-epochs 1 \
     2>&1 | tee logs/bonus_410m_no_shard.log
 
 # SHARD_GRAD_OP
-OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 hw2_train_fsdp.py \
+OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 train_fsdp.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-410m \
     --strategy SHARD_GRAD_OP -b 64 -s 512 --num-epochs 1 \
     2>&1 | tee logs/bonus_410m_shard_grad_op.log
 
 # FULL_SHARD
-OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 hw2_train_fsdp.py \
+OMP_NUM_THREADS=1 torchrun --standalone --nproc-per-node 4 train_fsdp.py \
     -d Salesforce/wikitext --dataset-subset wikitext-103-v1 \
     -m EleutherAI/pythia-410m \
     --strategy FULL_SHARD -b 64 -s 512 --num-epochs 1 \
